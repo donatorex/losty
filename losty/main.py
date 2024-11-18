@@ -73,7 +73,7 @@ def add_group(group: str) -> int:
     :param group: str – The name of the group to be added.
     :return: int – The ID of the group from the database.
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect('../data/losty_db.db')
     cur = db.cursor()
     try:
         # Insert the group into the groups table, ignoring if it already exists.
@@ -103,7 +103,7 @@ def add_post(row: tuple) -> int:
         — caption: str – The caption of the post.
     :return: int – The ID of the newly inserted post.
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect('../data/losty_db.db')
     cur = db.cursor()
     try:
         # Insert the post into the posts table.
@@ -129,7 +129,7 @@ def add_image(post_id: int, image_path: str, embedding: list) -> None:
     :param image_path: str – The file path to the image.
     :param embedding: list – The embedding of the image as a list.
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect('../data/losty_db.db')
     cur = db.cursor()
     try:
         # Insert the image record into the images table.
@@ -152,7 +152,7 @@ def check_shortcode(shortcode: str) -> bool:
     :param shortcode: str – The shortcode to be checked.
     :return: bool – True if the shortcode exists, False otherwise.
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect('../data/losty_db.db')
     cur = db.cursor()
     try:
         # Check if the shortcode exists in the database.
@@ -171,7 +171,7 @@ def cleanup_data() -> None:
     Cleans up old image and post data from the database and file system.
 
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect('../data/losty_db.db')
     cur = db.cursor()
     try:
         zero_date = datetime.now(tz=timezone.utc) - TIME_DELTA
@@ -266,7 +266,7 @@ class LostyFinder:
 
         :return: None.
         """
-        db = sqlite3.connect('data/losty_db.db')
+        db = sqlite3.connect('../data/losty_db.db')
         cur = db.cursor()
         try:
             embeddings_data = []
@@ -318,7 +318,7 @@ class LostyFinder:
         # Initialize the page number.
         current_page = 1
 
-        db = sqlite3.connect('data/losty_db.db')
+        db = sqlite3.connect('../data/losty_db.db')
         cur = db.cursor()
 
         try:
