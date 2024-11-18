@@ -20,7 +20,7 @@ from datetime import datetime
 import telebot
 from PIL import Image
 
-from .losty.main import LostyFinder
+from .main import LostyFinder
 
 
 API_TOKEN = os.environ.get('TELEGRAM_API_TOKEN')
