@@ -1,0 +1,7 @@
+instaloader
+numpy
+pillow
+pyTelegramBotAPI
+requests
+scikit-learn
+tensorflow
