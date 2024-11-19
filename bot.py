@@ -210,17 +210,17 @@ def update_data() -> None:
         conn = sqlite3.connect('data/losty_db.db')
         cur = conn.cursor()
         try:
-            # Retrieve the minimum start date from posts.
-            cur.execute('SELECT MAX(date) FROM posts GROUP BY group_id')
-            start_date = min(cur.fetchall())[0]
-
-            # Get the count of posts before update.
+            # Get the count of posts before the update.
             cur.execute('SELECT COUNT(*) FROM posts;')
             count_before = cur.fetchone()[0]
 
+            # Retrieve the minimum start date from posts.
+            cur.execute('SELECT MAX(date) FROM posts GROUP BY group_id')
+            rows = cur.fetchall()
+
             # Update data starting from the earliest post date or default to a full update.
-            if start_date:
-                losty.update_data(start_date=datetime.fromisoformat(start_date).replace(tzinfo=None))
+            if rows:
+                losty.update_data(start_date=datetime.fromisoformat(min(rows)[0]).replace(tzinfo=None))
             else:
                 losty.update_data()
 
