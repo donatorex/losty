@@ -208,6 +208,7 @@ def update_data() -> None:
 
     :return: None
     """
+    print('Starting update...')
     while True:
         conn = sqlite3.connect('data/losty_db.db')
         cur = conn.cursor()
@@ -216,12 +217,11 @@ def update_data() -> None:
             cur.execute('SELECT COUNT(*) FROM posts;')
             count_before = cur.fetchone()[0]
 
-            # Retrieve the minimum start date from posts.
-            cur.execute('SELECT MAX(date) FROM posts GROUP BY group_id')
-            rows = cur.fetchall()
-
             # Update data starting from the earliest post date or default to a full update.
-            if rows:
+            if losty.initial_update:
+                # Retrieve the minimum start date from posts.
+                cur.execute('SELECT MAX(date) FROM posts GROUP BY group_id')
+                rows = cur.fetchall()
                 losty.update_data(start_date=datetime.fromisoformat(min(rows)[0]).replace(tzinfo=None))
             else:
                 losty.update_data()

@@ -63,7 +63,7 @@ from tensorflow.keras.models import Model
 
 LOGIN = os.environ.get('LOGIN')
 PASSWORD = os.environ.get('PASSWORD')
-TIME_DELTA = timedelta(days=182)
+TIME_DELTA = timedelta(days=3)
 
 
 def add_group(group: str) -> int:
@@ -217,6 +217,7 @@ class LostyFinder:
         :param self.loader: Instaloader object.
         :param self.model: ResNet50 model.
         :param self.knn: NearestNeighbors object.
+        :param self.initial_update: bool - Flag to indicate if the initial update has been done.
         """
         self.groups = ['lost_found_pets_almaty', 'poteryashki_almaty', 'almaty_pomosh_zhivotnym', 'aulau_kyzmeti']
         self.loader = instaloader.Instaloader()
@@ -225,6 +226,7 @@ class LostyFinder:
         base_model = ResNet50(weights='imagenet')
         self.model = Model(inputs=base_model.input, outputs=base_model.layers[-2].output)
         self.knn = NearestNeighbors(metric='cosine')
+        self.initial_update = False
 
     def login(self, relogin: bool = False) -> None:
         """
@@ -239,6 +241,12 @@ class LostyFinder:
                 self.loader.login(user=LOGIN, passwd=PASSWORD)
                 self.loader.save_session_to_file('data/session-inst')
                 print(f"Successful {'re-login' if relogin else 'login'} attempt")
+
+                if os.path.exists('data/session-inst'):
+                    print("Session file exists.")
+                else:
+                    print("Session file does not exist.")
+
         except Exception as e:
             print(f"Unsuccessful {'re-login' if relogin else 'login'} attempt: {e}")
 
@@ -381,12 +389,16 @@ class LostyFinder:
                 # Load profile from Instagram.
                 profile = instaloader.Profile.from_username(self.loader.context, group)
 
+                print('Profile OK')
+
                 # Ensure the group's directory exists.
                 os.makedirs(f"data/groups/{group}", exist_ok=True)
 
                 # Download posts from the profile, filtering by the start date, in 'data/groups' directory.
                 original_dir = os.getcwd()
                 os.chdir('data/groups')
+
+                print('Pre-posts OK')
 
                 self.loader.posts_download_loop(
                     posts=profile.get_posts(),
@@ -397,12 +409,16 @@ class LostyFinder:
                 )
                 os.chdir(original_dir)
 
+                print('Posts OK')
+
                 # Save profile picture if it doesn't exist.
                 if not os.path.exists(f"data/groups/{group}/{group}_profile_pic.jpg"):
                     profile_pic_url = profile.profile_pic_url_no_iphone
                     image_b = requests.get(profile_pic_url).content
                     image = Image.open(io.BytesIO(image_b))
                     image.save(f"data/groups/{group}/{group}_profile_pic.jpg")
+
+                print('Profile pic OK')
 
             except Exception as e:
                 print(f"Attempt to authorization or posts download aborted: {e}")
@@ -412,6 +428,8 @@ class LostyFinder:
 
             # Add the group to the database.
             group_id = add_group(group)
+
+            print('Group ID OK')
 
             try:
                 # Process each file in the group's directory.
@@ -441,6 +459,7 @@ class LostyFinder:
                                 image_path = os.path.join('data', 'groups', group, f"{filename}.jpg")
                                 embedding = self.get_embedding(image_path)
                                 add_image(post_id, image_path, embedding)
+                                print(f" ---> Post {shortcode} added to database")
                             elif data['__typename'] == 'GraphSidecar':
                                 for i in range(1, len(data['edge_sidecar_to_children']['edges']) + 1):
                                     image_path = os.path.join('data', 'groups', group, f"{filename}_{i}.jpg")
@@ -457,3 +476,4 @@ class LostyFinder:
         # Refit KNN model and cleanup old data.
         self.knn_refit()
         cleanup_data()
+        self.initial_update = True
