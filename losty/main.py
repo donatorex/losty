@@ -382,8 +382,7 @@ class LostyFinder:
                 profile = instaloader.Profile.from_username(self.loader.context, group)
 
                 # Ensure the group's directory exists.
-                if not os.path.exists(f"data/groups/{group}"):
-                    os.mkdir(f"data/groups/{group}")
+                os.makedirs(f"data/groups/{group}", exist_ok=True)
 
                 # Download posts from the profile, filtering by the start date, in 'data/groups' directory.
                 original_dir = os.getcwd()

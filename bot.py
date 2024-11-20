@@ -56,6 +56,8 @@ def handle_photo(message: telebot.types.Message) -> None:
 
         bot.send_message(message.chat.id, 'Ищу совпадения...')
 
+        os.makedirs('data/temp', exist_ok=True)
+
         input_image_path = os.path.join('data', 'temp', f"{message.chat.id}_temp_image.jpg")
         with open(input_image_path, 'wb') as new_file:
             new_file.write(downloaded_file)
