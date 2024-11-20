@@ -73,7 +73,7 @@ def add_group(group: str) -> int:
     :param group: str – The name of the group to be added.
     :return: int – The ID of the group from the database.
     """
-    db = sqlite3.connect('../data/losty_db.db')
+    db = sqlite3.connect('data/losty_db.db')
     cur = db.cursor()
     try:
         # Insert the group into the groups table, ignoring if it already exists.
@@ -103,7 +103,7 @@ def add_post(row: tuple) -> int:
         — caption: str – The caption of the post.
     :return: int – The ID of the newly inserted post.
     """
-    db = sqlite3.connect('../data/losty_db.db')
+    db = sqlite3.connect('data/losty_db.db')
     cur = db.cursor()
     try:
         # Insert the post into the posts table.
@@ -129,7 +129,7 @@ def add_image(post_id: int, image_path: str, embedding: list) -> None:
     :param image_path: str – The file path to the image.
     :param embedding: list – The embedding of the image as a list.
     """
-    db = sqlite3.connect('../data/losty_db.db')
+    db = sqlite3.connect('data/losty_db.db')
     cur = db.cursor()
     try:
         # Insert the image record into the images table.
@@ -152,7 +152,7 @@ def check_shortcode(shortcode: str) -> bool:
     :param shortcode: str – The shortcode to be checked.
     :return: bool – True if the shortcode exists, False otherwise.
     """
-    db = sqlite3.connect('../data/losty_db.db')
+    db = sqlite3.connect('data/losty_db.db')
     cur = db.cursor()
     try:
         # Check if the shortcode exists in the database.
@@ -171,7 +171,7 @@ def cleanup_data() -> None:
     Cleans up old image and post data from the database and file system.
 
     """
-    db = sqlite3.connect('../data/losty_db.db')
+    db = sqlite3.connect('data/losty_db.db')
     cur = db.cursor()
     try:
         zero_date = datetime.now(tz=timezone.utc) - TIME_DELTA
@@ -233,14 +233,14 @@ class LostyFinder:
         :param relogin: bool - If True, a relogin will be done with the session file saved.
         """
         try:
-            if not relogin and os.path.exists('data/session-losty.pets'):
+            if not relogin and os.path.exists('data/session-inst'):
                 self.loader.load_session_from_file(LOGIN, 'data/session-inst')
             else:
                 self.loader.login(user=LOGIN, passwd=PASSWORD)
                 self.loader.save_session_to_file('data/session-inst')
-                print('Successful re-login attempt')
+                print(f"Successful {'re-login' if relogin else 'login'} attempt")
         except Exception as e:
-            print(f"Unsuccessful re-login attempt: {e}")
+            print(f"Unsuccessful {'re-login' if relogin else 'login'} attempt: {e}")
 
     def get_embedding(self, image_path: str) -> list:
         """
@@ -266,7 +266,7 @@ class LostyFinder:
 
         :return: None.
         """
-        db = sqlite3.connect('../data/losty_db.db')
+        db = sqlite3.connect('data/losty_db.db')
         cur = db.cursor()
         try:
             embeddings_data = []
@@ -289,7 +289,7 @@ class LostyFinder:
             cur.close()
             db.close()
 
-    def find_matches(self, image_path: str) -> dict:
+    def find_matches(self, input_image_path: str) -> dict:
         """
         Find matches for the given image by calculating the distances between its embedding
         and the embeddings of all images in the database. The matches are paginated and returned
@@ -297,16 +297,16 @@ class LostyFinder:
         each key is a shortcode, and the value is a list of the following format:
         [image_path, date, image_path, match_percentage].
 
-        :param image_path: The file path to the image to find matches for.
+        :param input_image_path: The file path to the image to find matches for.
         :return: A dictionary of matches paginated by page number.
         """
 
         # Retrieve the embedding of the given image.
-        input_embedding = self.get_embedding(image_path)
+        input_embedding = self.get_embedding(input_image_path)
         input_embedding_array = np.array(input_embedding).reshape(1, -1)
         try:
             # Calculate the distances between the input embedding and all embeddings in the database.
-            distances, indices = self.knn.kneighbors(input_embedding_array, n_neighbors=1000)
+            distances, indices = self.knn.kneighbors(input_embedding_array, n_neighbors=self.knn.n_samples_fit_)
         except Exception as e:
             print(f"An error occurred while finding matches: {e}")
             return {}
@@ -318,7 +318,7 @@ class LostyFinder:
         # Initialize the page number.
         current_page = 1
 
-        db = sqlite3.connect('../data/losty_db.db')
+        db = sqlite3.connect('data/losty_db.db')
         cur = db.cursor()
 
         try:
@@ -347,12 +347,15 @@ class LostyFinder:
                         # Calculate the match percentage.
                         match_percentage = (1 - distances[0][list(indices[0]).index(index)])
                         # Add the match to the pages dictionary.
-                        pages[current_page][shortcode] = [image_path.split('\\')[0], date, image_path, match_percentage]
+                        pages[current_page][shortcode] = [
+                            os.path.basename(os.path.dirname(image_path)),  # group
+                            date,
+                            image_path,
+                            match_percentage
+                        ]
                     # If the current page is full, increment the page number.
                     if len(pages[current_page]) >= page_size:
                         current_page += 1
-                        if current_page == 11:
-                            break
             return pages
         except Exception as e:
             print(f"Error while finding matches: {e}")
@@ -371,30 +374,39 @@ class LostyFinder:
         """
 
         if start_date is None:
-            start_date = datetime.now(tz=timezone.utc) - TIME_DELTA
+            start_date = datetime.now(tz=timezone.utc).replace(tzinfo=None) - TIME_DELTA
 
         for group in self.groups:
             try:
                 # Load profile from Instagram.
                 profile = instaloader.Profile.from_username(self.loader.context, group)
 
-                # Save profile picture if it doesn't exist.
-                if not os.path.exists(f"{group}/{group}_profile_pic.jpg"):
-                    profile_pic_url = profile.profile_pic_url_no_iphone
-                    image_b = requests.get(profile_pic_url).content
-                    image = Image.open(io.BytesIO(image_b))
-                    image.save(f"{group}/{group}_profile_pic.jpg")
+                # Ensure the group's directory exists.
+                if not os.path.exists(f"data/groups/{group}"):
+                    os.mkdir(f"data/groups/{group}")
 
-                # Download posts from the profile.
+                # Download posts from the profile, filtering by the start date, in 'data/groups' directory.
+                original_dir = os.getcwd()
+                os.chdir('data/groups')
+
                 self.loader.posts_download_loop(
                     posts=profile.get_posts(),
-                    target=profile.username,
+                    target=group,
                     fast_update=True,
                     takewhile=lambda post: post.date_utc > start_date,
                     possibly_pinned=3
                 )
+                os.chdir(original_dir)
+
+                # Save profile picture if it doesn't exist.
+                if not os.path.exists(f"data/groups/{group}/{group}_profile_pic.jpg"):
+                    profile_pic_url = profile.profile_pic_url_no_iphone
+                    image_b = requests.get(profile_pic_url).content
+                    image = Image.open(io.BytesIO(image_b))
+                    image.save(f"data/groups/{group}/{group}_profile_pic.jpg")
+
             except Exception as e:
-                print(f"Attempt to update database aborted: authorization error ({e})")
+                print(f"Attempt to authorization or posts download aborted: {e}")
                 self.knn_refit()
                 self.login(relogin=True)
                 return
@@ -404,14 +416,14 @@ class LostyFinder:
 
             try:
                 # Process each file in the group's directory.
-                for file_name in os.listdir(f"{group}/"):
+                for file_name in os.listdir(f"data/groups/{group}/"):
                     # Delete .mp4 files.
                     if file_name.endswith('.mp4'):
-                        os.remove(os.path.join(group, file_name))
+                        os.remove(os.path.join('data', 'groups', group, file_name))
                         continue
 
                     if file_name.endswith('.json.xz'):
-                        with lzma.open(os.path.join(group, file_name), 'rt') as file:
+                        with lzma.open(os.path.join('data', 'groups', group, file_name), 'rt') as file:
                             data = json.load(file)['node']
 
                         shortcode = data['shortcode']
@@ -427,12 +439,12 @@ class LostyFinder:
 
                             # Determine the type and process accordingly.
                             if data['__typename'] in ('GraphImage', 'GraphVideo'):
-                                image_path = os.path.join(group, f"{filename}.jpg")
+                                image_path = os.path.join('data', 'groups', group, f"{filename}.jpg")
                                 embedding = self.get_embedding(image_path)
                                 add_image(post_id, image_path, embedding)
                             elif data['__typename'] == 'GraphSidecar':
                                 for i in range(1, len(data['edge_sidecar_to_children']['edges']) + 1):
-                                    image_path = os.path.join(group, f"{filename}_{i}.jpg")
+                                    image_path = os.path.join('data', 'groups', group, f"{filename}_{i}.jpg")
                                     embedding = self.get_embedding(image_path)
                                     add_image(post_id, image_path, embedding)
                             else:

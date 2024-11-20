@@ -56,7 +56,7 @@ def handle_photo(message: telebot.types.Message) -> None:
 
         bot.send_message(message.chat.id, 'Ищу совпадения...')
 
-        input_image_path = f"data/temp/{message.chat.id}_temp_image.jpg"
+        input_image_path = os.path.join('data', 'temp', f"{message.chat.id}_temp_image.jpg")
         with open(input_image_path, 'wb') as new_file:
             new_file.write(downloaded_file)
 
@@ -94,7 +94,7 @@ def add_logo_to_image(image_path: str, group: str) -> Image:
     """
     image = Image.open(image_path)
 
-    logo = Image.open(f"{group}/{group}_profile_pic.jpg").convert('RGBA')
+    logo = Image.open(f"data/groups/{group}/{group}_profile_pic.jpg").convert('RGBA')
 
     logo_size_ratio = 0.15
     logo_width = int(image.width * logo_size_ratio)
@@ -146,7 +146,7 @@ def send_matches(chat_id: int, pages: dict, page_number: int) -> None:
 
         # Send the message with the keyboard.
         reply_markup = telebot.types.InlineKeyboardMarkup(keyboard)
-        bot.send_message(chat_id, f"Страница {page_number} из 10", reply_markup=reply_markup)
+        bot.send_message(chat_id, f"Страница {page_number} из {len(pages)}", reply_markup=reply_markup)
     except Exception as e:
         print(f"Error occurred with bot: {e}")
         bot.send_message(chat_id, "Произошла техническая ошибка. Попробуйте позже.")
