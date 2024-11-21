@@ -225,6 +225,7 @@ class LostyFinder:
         """
         self.groups = ['lost_found_pets_almaty', 'poteryashki_almaty', 'almaty_pomosh_zhivotnym', 'aulau_kyzmeti']
         self.loader = instaloader.Instaloader()
+        self.login_attempt = 0
         self.login()
 
         base_model = ResNet50(weights='imagenet')
@@ -242,10 +243,12 @@ class LostyFinder:
         try:
             if not relogin and os.path.exists(session_file_path):
                 self.loader.load_session_from_file(LOGIN, session_file_path)
+                self.login_attempt += 1
                 print('Session file uploaded successfully')
             else:
                 self.loader.login(user=LOGIN, passwd=PASSWORD)
                 self.loader.save_session_to_file(session_file_path)
+                self.login_attempt = 1
                 print(f"Successful {'re-login' if relogin else 'login'} attempt")
         except Exception as e:
             print(f"Unsuccessful {'re-login' if relogin else 'login'} attempt: {e}")
@@ -418,7 +421,10 @@ class LostyFinder:
             except Exception as e:
                 print(f"Attempt to authorization or posts download aborted: {e}")
                 self.knn_refit()
-                self.login(relogin=True)
+                if self.login_attempt >= 2:
+                    self.login(relogin=True)
+                else:
+                    self.login()
                 return
 
             # Add the group to the database.
