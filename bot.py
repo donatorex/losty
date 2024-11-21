@@ -271,7 +271,9 @@ def create_database() -> None:
                 group_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE
             );
-            CREATE TABLE IF NOT EXISTS posts (
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS posts (
                 post_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 group_id INTEGER,
                 shortcode TEXT NOT NULL,
@@ -279,7 +281,9 @@ def create_database() -> None:
                 caption TEXT,
                 FOREIGN KEY (group_id) REFERENCES groups(group_id)
             );
-            CREATE TABLE IF NOT EXISTS images (
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS images (
                 image_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 post_id INTEGER,
                 image_path TEXT NOT NULL,
