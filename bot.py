@@ -24,6 +24,11 @@ from losty import LostyFinder
 
 
 API_TOKEN = os.environ.get('TELEGRAM_API_TOKEN')
+DATA_DIR = '/disk/data'
+TEMP_DIR = '/disk/data/temp'
+DB_PATH = '/disk/data/losty_db.db'
+
+
 bot = telebot.TeleBot(API_TOKEN)
 
 losty = LostyFinder()
@@ -56,9 +61,7 @@ def handle_photo(message: telebot.types.Message) -> None:
 
         bot.send_message(message.chat.id, 'Ищу совпадения...')
 
-        os.makedirs('data/temp', exist_ok=True)
-
-        input_image_path = os.path.join('data', 'temp', f"{message.chat.id}_temp_image.jpg")
+        input_image_path = os.path.join(TEMP_DIR, f"{message.chat.id}_temp_image.jpg")
         with open(input_image_path, 'wb') as new_file:
             new_file.write(downloaded_file)
 
@@ -96,7 +99,8 @@ def add_logo_to_image(image_path: str, group: str) -> Image:
     """
     image = Image.open(image_path)
 
-    logo = Image.open(f"data/groups/{group}/{group}_profile_pic.jpg").convert('RGBA')
+    logo_path = os.path.join(DATA_DIR, f"{group}/{group}_profile_pic.jpg")
+    logo = Image.open(logo_path).convert('RGBA')
 
     logo_size_ratio = 0.15
     logo_width = int(image.width * logo_size_ratio)
@@ -208,9 +212,16 @@ def update_data() -> None:
 
     :return: None
     """
+    # Make sure the data and temp directories exists.
+    os.makedirs(TEMP_DIR, exist_ok=True)
+
+    # Create the database if it doesn't exist.
+    if not os.path.exists(DB_PATH):
+        create_database()
+
     print('Starting update...')
     while True:
-        conn = sqlite3.connect('data/losty_db.db')
+        conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
         try:
             # Get the count of posts before the update.
@@ -244,6 +255,45 @@ def update_data() -> None:
 
         # Sleep for a random interval before the next update cycle.
         time.sleep(random.randint(3400, 3800))
+
+
+def create_database() -> None:
+    """
+    Create the database if it doesn't exist.
+
+    :return: None
+    """
+    db = sqlite3.connect(DB_PATH)
+    cur = db.cursor()
+    try:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS groups (
+                group_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS posts (
+                post_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id INTEGER,
+                shortcode TEXT NOT NULL,
+                date TIMESTAMP NOT NULL,
+                caption TEXT,
+                FOREIGN KEY (group_id) REFERENCES groups(group_id)
+            );
+            CREATE TABLE IF NOT EXISTS images (
+                image_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER,
+                image_path TEXT NOT NULL,
+                embedding TEXT NOT NULL,
+                FOREIGN KEY (post_id) REFERENCES posts(post_id)
+            );
+        """)
+        db.commit()
+    except Exception as e:
+        print(f"An error occurred while creating the database: {e}")
+        db.rollback()
+    finally:
+        cur.close()
+        db.close()
 
 
 if __name__ == "__main__":

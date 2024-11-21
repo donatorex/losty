@@ -34,7 +34,7 @@ Dependencies:
     — `tensorflow.keras`: For deep learning model ResNet50.
     — `sqlite3`: For database interactions.
 
-Note: This script assumes the existence of an SQLite database at 'data/losty_db.db' and
+Note: This script assumes the existence of an SQLite database at 'disk/data/losty_db.db' and
 appropriate database schema for storing group, post and image records.
 
 Author: Roman Kozlov
@@ -65,6 +65,10 @@ LOGIN = os.environ.get('LOGIN')
 PASSWORD = os.environ.get('PASSWORD')
 TIME_DELTA = timedelta(days=3)
 
+DATA_DIR = '/disk/data'
+TEMP_DIR = '/disk/data/temp'
+DB_PATH = '/disk/data/losty_db.db'
+
 
 def add_group(group: str) -> int:
     """
@@ -73,7 +77,7 @@ def add_group(group: str) -> int:
     :param group: str – The name of the group to be added.
     :return: int – The ID of the group from the database.
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect(DB_PATH)
     cur = db.cursor()
     try:
         # Insert the group into the groups table, ignoring if it already exists.
@@ -103,7 +107,7 @@ def add_post(row: tuple) -> int:
         — caption: str – The caption of the post.
     :return: int – The ID of the newly inserted post.
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect(DB_PATH)
     cur = db.cursor()
     try:
         # Insert the post into the posts table.
@@ -129,7 +133,7 @@ def add_image(post_id: int, image_path: str, embedding: list) -> None:
     :param image_path: str – The file path to the image.
     :param embedding: list – The embedding of the image as a list.
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect(DB_PATH)
     cur = db.cursor()
     try:
         # Insert the image record into the images table.
@@ -152,7 +156,7 @@ def check_shortcode(shortcode: str) -> bool:
     :param shortcode: str – The shortcode to be checked.
     :return: bool – True if the shortcode exists, False otherwise.
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect(DB_PATH)
     cur = db.cursor()
     try:
         # Check if the shortcode exists in the database.
@@ -171,7 +175,7 @@ def cleanup_data() -> None:
     Cleans up old image and post data from the database and file system.
 
     """
-    db = sqlite3.connect('data/losty_db.db')
+    db = sqlite3.connect(DB_PATH)
     cur = db.cursor()
     try:
         zero_date = datetime.now(tz=timezone.utc) - TIME_DELTA
@@ -234,19 +238,15 @@ class LostyFinder:
 
         :param relogin: bool - If True, a relogin will be done with the session file saved.
         """
+        session_file_path = os.path.join(DATA_DIR, 'session-inst')
         try:
-            if not relogin and os.path.exists('data/session-inst'):
-                self.loader.load_session_from_file(LOGIN, 'data/session-inst')
+            if not relogin and os.path.exists(session_file_path):
+                self.loader.load_session_from_file(LOGIN, session_file_path)
+                print('Session file uploaded successfully')
             else:
                 self.loader.login(user=LOGIN, passwd=PASSWORD)
-                self.loader.save_session_to_file('data/session-inst')
+                self.loader.save_session_to_file(session_file_path)
                 print(f"Successful {'re-login' if relogin else 'login'} attempt")
-
-                if os.path.exists('data/session-inst'):
-                    print("Session file exists.")
-                else:
-                    print("Session file does not exist.")
-
         except Exception as e:
             print(f"Unsuccessful {'re-login' if relogin else 'login'} attempt: {e}")
 
@@ -274,7 +274,7 @@ class LostyFinder:
 
         :return: None.
         """
-        db = sqlite3.connect('data/losty_db.db')
+        db = sqlite3.connect(DB_PATH)
         cur = db.cursor()
         try:
             embeddings_data = []
@@ -326,7 +326,7 @@ class LostyFinder:
         # Initialize the page number.
         current_page = 1
 
-        db = sqlite3.connect('data/losty_db.db')
+        db = sqlite3.connect(DB_PATH)
         cur = db.cursor()
 
         try:
@@ -386,19 +386,17 @@ class LostyFinder:
 
         for group in self.groups:
             try:
+                group_dir = os.path.join(DATA_DIR, group)
+
                 # Load profile from Instagram.
                 profile = instaloader.Profile.from_username(self.loader.context, group)
 
-                print('Profile OK')
-
                 # Ensure the group's directory exists.
-                os.makedirs(f"data/groups/{group}", exist_ok=True)
+                os.makedirs(group_dir, exist_ok=True)
 
-                # Download posts from the profile, filtering by the start date, in 'data/groups' directory.
+                # Download posts from the profile, filtering by the start date, in 'DATA_DIR' directory.
                 original_dir = os.getcwd()
-                os.chdir('data/groups')
-
-                print('Pre-posts OK')
+                os.chdir(DATA_DIR)
 
                 self.loader.posts_download_loop(
                     posts=profile.get_posts(),
@@ -409,16 +407,13 @@ class LostyFinder:
                 )
                 os.chdir(original_dir)
 
-                print('Posts OK')
-
                 # Save profile picture if it doesn't exist.
-                if not os.path.exists(f"data/groups/{group}/{group}_profile_pic.jpg"):
+                logo_path = os.path.join(group_dir, f"{group}_profile_pic.jpg")
+                if not os.path.exists(logo_path):
                     profile_pic_url = profile.profile_pic_url_no_iphone
                     image_b = requests.get(profile_pic_url).content
                     image = Image.open(io.BytesIO(image_b))
-                    image.save(f"data/groups/{group}/{group}_profile_pic.jpg")
-
-                print('Profile pic OK')
+                    image.save(logo_path)
 
             except Exception as e:
                 print(f"Attempt to authorization or posts download aborted: {e}")
@@ -429,18 +424,16 @@ class LostyFinder:
             # Add the group to the database.
             group_id = add_group(group)
 
-            print('Group ID OK')
-
             try:
                 # Process each file in the group's directory.
-                for file_name in os.listdir(f"data/groups/{group}/"):
+                for file_name in os.listdir(group_dir):
                     # Delete .mp4 files.
                     if file_name.endswith('.mp4'):
-                        os.remove(os.path.join('data', 'groups', group, file_name))
+                        os.remove(os.path.join(group_dir, file_name))
                         continue
 
                     if file_name.endswith('.json.xz'):
-                        with lzma.open(os.path.join('data', 'groups', group, file_name), 'rt') as file:
+                        with lzma.open(os.path.join(group_dir, file_name), 'rt') as file:
                             data = json.load(file)['node']
 
                         shortcode = data['shortcode']
@@ -456,13 +449,13 @@ class LostyFinder:
 
                             # Determine the type and process accordingly.
                             if data['__typename'] in ('GraphImage', 'GraphVideo'):
-                                image_path = os.path.join('data', 'groups', group, f"{filename}.jpg")
+                                image_path = os.path.join(group_dir, f"{filename}.jpg")
                                 embedding = self.get_embedding(image_path)
                                 add_image(post_id, image_path, embedding)
                                 print(f" ---> Post {shortcode} added to database")
                             elif data['__typename'] == 'GraphSidecar':
                                 for i in range(1, len(data['edge_sidecar_to_children']['edges']) + 1):
-                                    image_path = os.path.join('data', 'groups', group, f"{filename}_{i}.jpg")
+                                    image_path = os.path.join(group_dir, f"{filename}_{i}.jpg")
                                     embedding = self.get_embedding(image_path)
                                     add_image(post_id, image_path, embedding)
                             else:
