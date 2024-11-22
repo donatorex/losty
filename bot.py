@@ -15,7 +15,7 @@ import random
 import sqlite3
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import telebot
 from PIL import Image
@@ -28,6 +28,7 @@ DATA_DIR = '/disk/data'
 TEMP_DIR = '/disk/data/temp'
 DB_PATH = '/disk/data/losty_db.db'
 
+AUTO_UPDATE = False
 
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -46,6 +47,14 @@ def send_welcome(message: telebot.types.Message) -> None:
 @bot.message_handler(commands=['test'])
 def send_test(message):
     bot.reply_to(message, "Test mode")
+
+
+@bot.message_handler(commands=['auto_update'])
+def auto_update(message):
+    global AUTO_UPDATE
+    AUTO_UPDATE = not AUTO_UPDATE
+    bot.reply_to(message, f"Auto update {'enabled' if AUTO_UPDATE else 'disabled'}")
+    print(f"Auto update {'enabled' if AUTO_UPDATE else 'disabled'}")
 
 
 @bot.message_handler(content_types=['photo'])
@@ -221,6 +230,11 @@ def update_data() -> None:
 
     print('Starting update...')
     while True:
+
+        if not AUTO_UPDATE:
+            time.sleep(60)
+            continue
+
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
         try:
@@ -243,7 +257,6 @@ def update_data() -> None:
 
             # Log the number of posts added to the database.
             print(f"Database has been updated (added {int(count_after) - int(count_before)} post(s))")
-            print('------------------------------')
 
         except Exception as e:
             print(f"An error occurred during the update: {e}")
@@ -253,8 +266,13 @@ def update_data() -> None:
             cur.close()
             conn.close()
 
-        # Sleep for a random interval before the next update cycle.
-        time.sleep(random.randint(3400, 3800))
+            remaining_time = random.randint(7200, 10800)
+            print(f'Next update on {datetime.now(tz=timezone.utc) + timedelta(seconds=remaining_time)} (UTC)')
+            print(f"(local time: {datetime.now() + timedelta(seconds=remaining_time)})")
+            print('------------------------------')
+
+            # Sleep for a random interval before the next update cycle.
+            time.sleep(remaining_time)
 
 
 def create_database() -> None:

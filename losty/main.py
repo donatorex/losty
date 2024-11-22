@@ -63,7 +63,7 @@ from tensorflow.keras.models import Model
 
 LOGIN = os.environ.get('LOGIN')
 PASSWORD = os.environ.get('PASSWORD')
-TIME_DELTA = timedelta(days=3)
+TIME_DELTA = timedelta(days=90)
 
 DATA_DIR = '/disk/data'
 TEMP_DIR = '/disk/data/temp'
@@ -458,7 +458,6 @@ class LostyFinder:
                                 image_path = os.path.join(group_dir, f"{filename}.jpg")
                                 embedding = self.get_embedding(image_path)
                                 add_image(post_id, image_path, embedding)
-                                print(f" ---> Post {shortcode} added to database")
                             elif data['__typename'] == 'GraphSidecar':
                                 for i in range(1, len(data['edge_sidecar_to_children']['edges']) + 1):
                                     image_path = os.path.join(group_dir, f"{filename}_{i}.jpg")
