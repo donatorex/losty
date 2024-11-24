@@ -66,6 +66,7 @@ def drop_session_data(message):
 
     if os.path.exists(session_file_path):
         os.remove(session_file_path)
+        losty.login()
 
 
 @bot.message_handler(content_types=['photo'])
