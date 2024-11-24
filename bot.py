@@ -24,11 +24,14 @@ from losty import LostyFinder
 
 
 API_TOKEN = os.environ.get('TELEGRAM_API_TOKEN')
+AUTO_UPDATE_COMMAND = os.environ.get('AUTO_UPDATE_COMMAND')
+DROP_SESSION_DATA_COMMAND = os.environ.get('DROP_SESSION_DATA_COMMAND')
+
+AUTO_UPDATE = False
+
 DATA_DIR = '/disk/data'
 TEMP_DIR = '/disk/data/temp'
 DB_PATH = '/disk/data/losty_db.db'
-
-AUTO_UPDATE = False
 
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -49,12 +52,20 @@ def send_test(message):
     bot.reply_to(message, "Test mode")
 
 
-@bot.message_handler(commands=['auto_update'])
+@bot.message_handler(commands=[AUTO_UPDATE_COMMAND])
 def auto_update(message):
     global AUTO_UPDATE
     AUTO_UPDATE = not AUTO_UPDATE
     bot.reply_to(message, f"Auto update {'enabled' if AUTO_UPDATE else 'disabled'}")
     print(f"Auto update {'enabled' if AUTO_UPDATE else 'disabled'}")
+
+
+@bot.message_handler(commands=[DROP_SESSION_DATA_COMMAND])
+def drop_session_data(message):
+    session_file_path = os.path.join(DATA_DIR, 'session-inst')
+
+    if os.path.exists(session_file_path):
+        os.remove(session_file_path)
 
 
 @bot.message_handler(content_types=['photo'])
@@ -268,7 +279,6 @@ def update_data() -> None:
 
             remaining_time = random.randint(7200, 10800)
             print(f'Next update on {datetime.now(tz=timezone.utc) + timedelta(seconds=remaining_time)} (UTC)')
-            print(f"(local time: {datetime.now() + timedelta(seconds=remaining_time)})")
             print('------------------------------')
 
             # Sleep for a random interval before the next update cycle.
