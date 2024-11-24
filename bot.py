@@ -228,13 +228,13 @@ def update_data() -> None:
     if not os.path.exists(DB_PATH):
         create_database()
 
-    print('Starting update...')
     while True:
 
         if not AUTO_UPDATE:
             time.sleep(60)
             continue
 
+        print('Starting update...')
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
         try:
