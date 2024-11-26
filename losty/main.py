@@ -391,8 +391,8 @@ class LostyFinder:
             try:
                 group_dir = os.path.join(DATA_DIR, group)
 
-                # Load profile from Instagram.
-                profile = instaloader.Profile.from_username(self.loader.context, group)
+                # # Load profile from Instagram.
+                # profile = instaloader.Profile.from_username(self.loader.context, group)
 
                 # Ensure the group's directory exists.
                 os.makedirs(group_dir, exist_ok=True)
@@ -409,14 +409,14 @@ class LostyFinder:
                 #     possibly_pinned=3
                 # )
                 # os.chdir(original_dir)
-
-                # Save profile picture if it doesn't exist.
-                logo_path = os.path.join(group_dir, f"{group}_profile_pic.jpg")
-                if not os.path.exists(logo_path):
-                    profile_pic_url = profile.profile_pic_url_no_iphone
-                    image_b = requests.get(profile_pic_url).content
-                    image = Image.open(io.BytesIO(image_b))
-                    image.save(logo_path)
+                #
+                # # Save profile picture if it doesn't exist.
+                # logo_path = os.path.join(group_dir, f"{group}_profile_pic.jpg")
+                # if not os.path.exists(logo_path):
+                #     profile_pic_url = profile.profile_pic_url_no_iphone
+                #     image_b = requests.get(profile_pic_url).content
+                #     image = Image.open(io.BytesIO(image_b))
+                #     image.save(logo_path)
 
             except Exception as e:
                 print(f"Attempt to authorization or posts download aborted: {e}")
