@@ -397,18 +397,18 @@ class LostyFinder:
                 # Ensure the group's directory exists.
                 os.makedirs(group_dir, exist_ok=True)
 
-                # Download posts from the profile, filtering by the start date, in 'DATA_DIR' directory.
-                original_dir = os.getcwd()
-                os.chdir(DATA_DIR)
-
-                self.loader.posts_download_loop(
-                    posts=profile.get_posts(),
-                    target=group,
-                    fast_update=True,
-                    takewhile=lambda post: post.date_utc > start_date,
-                    possibly_pinned=3
-                )
-                os.chdir(original_dir)
+                # # Download posts from the profile, filtering by the start date, in 'DATA_DIR' directory.
+                # original_dir = os.getcwd()
+                # os.chdir(DATA_DIR)
+                #
+                # self.loader.posts_download_loop(
+                #     posts=profile.get_posts(),
+                #     target=group,
+                #     fast_update=True,
+                #     takewhile=lambda post: post.date_utc > start_date,
+                #     possibly_pinned=3
+                # )
+                # os.chdir(original_dir)
 
                 # Save profile picture if it doesn't exist.
                 logo_path = os.path.join(group_dir, f"{group}_profile_pic.jpg")
