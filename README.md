@@ -3,8 +3,6 @@ Losty is a Telegram bot designed to assist in finding lost pets by leveraging In
 
 URL: https://t.me/losty_pets_bot
 
-
-
 This script defines a Python module for managing a database of Instagram posts and images,
 primarily focused on lost and found pet groups. It utilizes Instagram scraping, image
 embedding generation using a ResNet50 model, and K-Nearest Neighbors (KNN) for finding
@@ -29,3 +27,5 @@ Main Classes and Functions:
       — `cleanup_data`: Function to clean up old image and post data.
       — `knn_refit`: Method to refit the KNN model using embeddings from the database.
       — `find_matches`: Method to find and paginate image matches for a given input image.
+
+The bot works in Almaty, Kazakhstan.
