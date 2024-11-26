@@ -28,6 +28,7 @@ AUTO_UPDATE_COMMAND = os.environ.get('AUTO_UPDATE_COMMAND')
 DROP_SESSION_DATA_COMMAND = os.environ.get('DROP_SESSION_DATA_COMMAND')
 
 AUTO_UPDATE = False
+TEST_MODE = False
 
 DATA_DIR = '/disk/data'
 TEMP_DIR = '/disk/data/temp'
@@ -49,7 +50,10 @@ def send_welcome(message: telebot.types.Message) -> None:
 
 @bot.message_handler(commands=['test'])
 def send_test(message):
-    bot.reply_to(message, "Test mode")
+    global TEST_MODE
+    TEST_MODE = not TEST_MODE
+
+    bot.reply_to(message, f"Test mode {'enabled' if TEST_MODE else 'disabled'}")
 
 
 @bot.message_handler(commands=[AUTO_UPDATE_COMMAND])
@@ -76,6 +80,23 @@ def handle_photo(message: telebot.types.Message) -> None:
 
     :param message: The incoming message containing the photo.
     """
+    if TEST_MODE:
+        try:
+            file_info = bot.get_file(message.photo[-1].file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+
+            profile_pic_path = os.path.join(DATA_DIR, 'almaty_pomosh_zhivotnym', f"almaty_pomosh_zhivotnym_profile_pic.jpg")
+
+            with open(profile_pic_path, 'wb') as new_file:
+                new_file.write(downloaded_file)
+            print("Profile pic updated successfully")
+            bot.send_message(message.chat.id, "Profile pic updated successfully")
+        except Exception as e:
+            print(f"Error occurred with profile pic update: {e}")
+            bot.send_message(message.chat.id, "Произошла техническая ошибка при обновлении фото профиля. Попробуйте позже.")
+        finally:
+            return
+
     try:
         file_info = bot.get_file(message.photo[-1].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
